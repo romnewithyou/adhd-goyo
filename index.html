@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#FBFAF8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>고요 · 떠오른 것을 잃지 않는 곳</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --bg:#FBFAF8; --raised:#FFFFFF; --hair:#E8E5DF;
+    --text:#1F1D1A; --muted:#8C877E; --ember:#C25A2E;
+    --ember-bg:#FBEEE6; --good:#3F8F5B;
+    --sys:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+  }
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:var(--sys);
+    overscroll-behavior:none; -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; height:100dvh; overflow:hidden;
+  }
+  @media(prefers-reduced-motion:no-preference){
+    .fade{animation:fade .3s ease both;}
+    @keyframes fade{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
+  }
+
+  .capture{padding:calc(env(safe-area-inset-top) + 16px) 18px 14px;border-bottom:1px solid var(--hair);background:var(--raised);}
+  .capture-row{display:flex;gap:10px;align-items:flex-end;}
+  #field{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--sys);font-size:17px;line-height:1.45;resize:none;max-height:120px;padding:6px 0;}
+  #field::placeholder{color:var(--muted);}
+  #toss{flex-shrink:0;width:44px;height:44px;border-radius:50%;border:none;background:var(--ember);color:#fff;font-size:21px;font-weight:600;cursor:pointer;transition:transform .12s,opacity .2s;display:grid;place-items:center;}
+  #toss:active{transform:scale(.9);}
+  #toss:disabled{opacity:.3;cursor:default;}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:9px;}
+
+  .tabs{display:flex;border-bottom:1px solid var(--hair);background:var(--raised);}
+  .tab{flex:1;padding:13px 0;background:none;border:none;cursor:pointer;color:var(--muted);font-family:var(--sys);font-size:13px;font-weight:500;position:relative;transition:color .2s;}
+  .tab .n{font-variant-numeric:tabular-nums;opacity:.65;margin-left:5px;}
+  .tab.on{color:var(--text);}
+  .tab.on::after{content:"";position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);width:26px;height:2px;background:var(--ember);border-radius:2px;}
+
+  .scroll{flex:1;overflow-y:auto;padding:8px 16px 40px;-webkit-overflow-scrolling:touch;}
+  .empty{text-align:center;color:var(--muted);margin-top:20vh;padding:0 30px;font-size:16px;line-height:1.6;}
+  .empty small{display:block;font-size:13px;margin-top:10px;opacity:.8;}
+
+  .card{background:var(--raised);border:1px solid var(--hair);border-radius:14px;padding:14px 15px 12px;margin-top:10px;box-shadow:0 1px 2px rgba(31,29,26,.03);}
+  .card.active{border-color:var(--ember);background:var(--ember-bg);cursor:pointer;}
+  .card-text{font-size:16px;line-height:1.45;}
+  .card.active .card-text{cursor:pointer;}
+  .card-meta{font-size:11px;color:var(--muted);margin-top:6px;}
+  .card-note{font-size:12.5px;color:var(--ember);margin-top:7px;line-height:1.4;}
+  .card-acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .chip{border:1px solid var(--hair);background:var(--bg);color:var(--muted);font-family:var(--sys);font-size:12.5px;font-weight:500;padding:7px 13px;border-radius:20px;cursor:pointer;transition:all .15s;}
+  .chip:active{transform:scale(.94);}
+  .chip.go{border-color:var(--ember);color:var(--ember);background:var(--raised);}
+  .chip.go.full{opacity:.45;}
+  .chip.done{color:var(--good);border-color:#3F8F5B44;background:var(--raised);}
+  .open-hint{font-size:11px;color:var(--ember);margin-top:9px;opacity:.8;}
+
+  .edit-area{width:100%;border:1px solid var(--ember);border-radius:10px;background:var(--raised);color:var(--text);font-family:var(--sys);font-size:16px;line-height:1.45;padding:10px 11px;outline:none;resize:none;}
+  .edit-acts{display:flex;gap:8px;margin-top:10px;}
+  .edit-acts .save{border-color:var(--ember);color:#fff;background:var(--ember);}
+
+  .slot-note{font-size:12px;color:var(--ember);margin:14px 4px 2px;display:flex;align-items:center;gap:7px;font-weight:500;}
+  .slot-dots{display:flex;gap:4px;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--hair);}
+  .dot.lit{background:var(--ember);}
+
+  .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);font-size:13.5px;font-weight:500;padding:11px 20px;border-radius:24px;opacity:0;pointer-events:none;transition:all .25s;z-index:50;white-space:nowrap;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .veil{position:fixed;inset:0;background:rgba(31,29,26,.4);backdrop-filter:blur(3px);display:none;place-items:center;z-index:60;padding:30px;}
+  .veil.show{display:grid;}
+  .sheet{background:var(--raised);border:1px solid var(--hair);border-radius:20px;padding:24px 22px;max-width:340px;width:100%;box-shadow:0 8px 40px rgba(31,29,26,.15);}
+  .sheet h3{font-size:19px;font-weight:600;margin-bottom:8px;}
+  .sheet p{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:18px;}
+  .sheet .pick{display:block;width:100%;text-align:left;background:var(--bg);border:1px solid var(--hair);border-radius:12px;padding:13px 15px;margin-bottom:9px;color:var(--text);font-family:var(--sys);font-size:15px;cursor:pointer;}
+  .sheet .pick:active{border-color:var(--ember);}
+  .sheet .cancel{width:100%;background:none;border:none;color:var(--muted);font-size:13px;padding:10px;margin-top:4px;cursor:pointer;}
+
+  /* ── FOCUS (한가지모드) ── */
+  .focus{position:fixed;inset:0;background:var(--bg);z-index:70;display:none;flex-direction:column;}
+  .focus.show{display:flex;}
+  .focus-top{padding:calc(env(safe-area-inset-top) + 14px) 20px 0;display:flex;justify-content:space-between;align-items:center;}
+  .focus-leave{background:none;border:none;color:var(--muted);font-size:14px;font-weight:500;cursor:pointer;padding:8px 0;display:flex;align-items:center;gap:5px;}
+  .focus-eyebrow{font-size:12px;color:var(--ember);font-weight:600;letter-spacing:.04em;}
+  .focus-body{flex:1;display:flex;flex-direction:column;justify-content:center;padding:24px 28px;overflow-y:auto;}
+  .focus-resume{background:var(--ember-bg);border:1px solid #C25A2E33;border-radius:12px;padding:13px 15px;margin-bottom:24px;}
+  .focus-resume .lbl{font-size:11px;color:var(--ember);font-weight:600;margin-bottom:4px;}
+  .focus-resume .txt{font-size:15px;line-height:1.5;}
+  .focus-task{font-size:26px;line-height:1.4;font-weight:500;}
+  .focus-edithint{font-size:12px;color:var(--muted);margin-top:14px;}
+  .focus-bottom{padding:0 20px calc(env(safe-area-inset-bottom) + 22px);display:flex;flex-direction:column;gap:11px;}
+  .focus-park{display:flex;gap:9px;align-items:center;background:var(--raised);border:1px solid var(--hair);border-radius:14px;padding:7px 7px 7px 16px;}
+  .focus-park input{flex:1;border:none;outline:none;background:transparent;font-family:var(--sys);font-size:15px;color:var(--text);padding:8px 0;}
+  .focus-park input::placeholder{color:var(--muted);}
+  .focus-park button{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:none;background:var(--text);color:var(--bg);font-size:17px;cursor:pointer;display:grid;place-items:center;transition:transform .12s,opacity .2s;}
+  .focus-park button:active{transform:scale(.9);}
+  .focus-park button:disabled{opacity:.25;}
+  .focus-main-acts{display:flex;gap:10px;}
+  .focus-done{flex:1;background:var(--good);border:none;color:#fff;font-family:var(--sys);font-size:16px;font-weight:600;padding:15px;border-radius:14px;cursor:pointer;transition:transform .12s;}
+  .focus-done:active{transform:scale(.97);}
+  .focus-edit{flex-shrink:0;background:var(--raised);border:1px solid var(--hair);color:var(--muted);font-family:var(--sys);font-size:14px;font-weight:500;padding:15px 18px;border-radius:14px;cursor:pointer;}
+  .focus-editbox{display:none;flex-direction:column;gap:10px;}
+  .focus-editbox.show{display:flex;}
+  .focus-editbox textarea{border:1px solid var(--ember);border-radius:12px;background:var(--raised);color:var(--text);font-family:var(--sys);font-size:18px;line-height:1.4;padding:13px;outline:none;resize:none;}
+  .focus-editbox .row{display:flex;gap:9px;}
+  .focus-editbox .row button{flex:1;border-radius:12px;padding:13px;font-family:var(--sys);font-size:15px;font-weight:600;cursor:pointer;border:1px solid var(--hair);background:var(--raised);color:var(--muted);}
+  .focus-editbox .row .sv{background:var(--ember);border-color:var(--ember);color:#fff;}
+</style>
+</head>
+<body>
+
+  <div class="capture">
+    <div class="capture-row">
+      <textarea id="field" rows="1" placeholder="떠오른 것…" autocomplete="off"></textarea>
+      <button id="toss" disabled>↑</button>
+    </div>
+    <div class="hint">분류는 나중에. 일단 던져두면 사라지지 않아.</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-view="inbox">받은 생각<span class="n" id="c-inbox">0</span></button>
+    <button class="tab" data-view="active">지금 하는 일<span class="n" id="c-active">0</span></button>
+    <button class="tab" data-view="done">끝낸 것<span class="n" id="c-done">0</span></button>
+  </div>
+
+  <div class="scroll" id="scroll"></div>
+  <div class="toast" id="toast"></div>
+
+  <div class="veil" id="veil">
+    <div class="sheet">
+      <h3>지금 하는 일은 3개까지</h3>
+      <p>하나를 끝까지 가보려면 동시에 너무 많이 붙들면 안 돼. 하나를 비워야 이걸 시작할 수 있어. 무엇을 받은 생각으로 되돌릴까?</p>
+      <div id="veil-picks"></div>
+      <button class="cancel" id="veil-cancel">아니, 그대로 둘게</button>
+    </div>
+  </div>
+
+  <!-- 두고 나가기: 어디까지 했어 메모 -->
+  <div class="veil" id="note-veil">
+    <div class="sheet">
+      <h3>어디까지 했어?</h3>
+      <p>다음에 다시 들어왔을 때 바로 이어가게, 딱 한 줄만. 비워둬도 괜찮아.</p>
+      <textarea id="note-ta" class="edit-area" rows="3" placeholder="예: 자료 3개까지 찾음. 다음은 정리하기"></textarea>
+      <div class="edit-acts" style="margin-top:14px;">
+        <button class="chip save" id="note-save" style="flex:1;text-align:center;">저장하고 나가기</button>
+      </div>
+      <button class="cancel" id="note-skip">그냥 나가기 (메모 없이)</button>
+    </div>
+  </div>
+
+  <!-- 한가지모드 -->
+  <div class="focus" id="focus">
+    <div class="focus-top">
+      <button class="focus-leave" id="focus-leave">‹ 두고 나가기</button>
+      <span class="focus-eyebrow">지금, 이것만</span>
+    </div>
+    <div class="focus-body">
+      <div class="focus-resume" id="focus-resume" style="display:none">
+        <div class="lbl">지난번 여기까지 했어</div>
+        <div class="txt" id="focus-resume-txt"></div>
+      </div>
+      <div class="focus-task" id="focus-task"></div>
+      <div class="focus-edithint" id="focus-edithint">탭하면 고칠 수 있어</div>
+
+      <div class="focus-editbox" id="focus-editbox">
+        <textarea id="focus-edit-ta" rows="3"></textarea>
+        <div class="row">
+          <button id="focus-edit-cancel">취소</button>
+          <button class="sv" id="focus-edit-save">저장</button>
+        </div>
+      </div>
+    </div>
+    <div class="focus-bottom">
+      <div class="focus-park">
+        <input id="park-input" placeholder="딴생각 떠올랐어? 여기 던져둬…" autocomplete="off">
+        <button id="park-btn" disabled>↑</button>
+      </div>
+      <div class="focus-main-acts">
+        <button class="focus-done" id="focus-done">끝냈어 🌱</button>
+        <button class="focus-edit" id="focus-edit-open">고치기</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+  const SLOT_CAP = 3;
+  const KEY = "goyo.items.v1";
+
+  let items = load();
+  let view = "inbox";
+  let pendingActivate = null;
+  let editingId = null;   // inline edit in list (inbox/done)
+  let focusId = null;     // currently open in 한가지모드
+
+  function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||[]; }catch(e){ return []; } }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){} }
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+  function get(id){ return items.find(i=>i.id===id); }
+
+  const field=document.getElementById('field');
+  const toss=document.getElementById('toss');
+  const scroll=document.getElementById('scroll');
+  const toast=document.getElementById('toast');
+  const veil=document.getElementById('veil');
+  const veilPicks=document.getElementById('veil-picks');
+
+  // ── capture ──
+  function grow(){ field.style.height='auto'; field.style.height=Math.min(field.scrollHeight,120)+'px'; }
+  field.addEventListener('input',()=>{ grow(); toss.disabled=!field.value.trim(); });
+  field.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); capture(); } });
+  toss.addEventListener('click',capture);
+  function capture(){
+    const t=field.value.trim(); if(!t) return;
+    items.unshift({id:uid(),text:t,status:'inbox',at:Date.now(),note:''});
+    save(); field.value=''; grow(); toss.disabled=true; field.focus();
+    flash("던졌어 — 안 잃어버려"); render();
+  }
+
+  function count(s){ return items.filter(i=>i.status===s).length; }
+
+  function tryActivate(id){
+    if(count('active')>=SLOT_CAP){ pendingActivate=id; openVeil(); return; }
+    setStatus(id,'active'); flash("지금 하는 일로 옮겼어");
+  }
+  function setStatus(id,s){
+    const it=get(id); if(!it) return;
+    it.status=s; if(s==='done') it.doneAt=Date.now();
+    save(); render();
+  }
+  function remove(id){ items=items.filter(i=>i.id!==id); save(); render(); }
+  function saveEdit(id,val){
+    const it=get(id); if(!it) return;
+    const v=val.trim();
+    if(v){ it.text=v; it.editedAt=Date.now(); save(); flash("고쳤어"); }
+    editingId=null; render();
+  }
+
+  // ── slot overflow ──
+  function openVeil(){
+    veilPicks.innerHTML='';
+    items.filter(i=>i.status==='active').forEach(it=>{
+      const b=document.createElement('button');
+      b.className='pick';
+      b.textContent=it.text.length>40?it.text.slice(0,40)+'…':it.text;
+      b.onclick=()=>{
+        setStatus(it.id,'inbox');
+        if(pendingActivate) setStatus(pendingActivate,'active');
+        closeVeil(); flash("자리 비웠어 — 시작!");
+      };
+      veilPicks.appendChild(b);
+    });
+    veil.classList.add('show');
+  }
+  function closeVeil(){ veil.classList.remove('show'); pendingActivate=null; }
+  document.getElementById('veil-cancel').onclick=closeVeil;
+  veil.addEventListener('click',e=>{ if(e.target===veil) closeVeil(); });
+
+  // ── tabs ──
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+      t.classList.add('on'); view=t.dataset.view; editingId=null; render();
+    });
+  });
+
+  function ago(ts){
+    const s=(Date.now()-ts)/1000;
+    if(s<60) return "방금";
+    if(s<3600) return Math.floor(s/60)+"분 전";
+    if(s<86400) return Math.floor(s/3600)+"시간 전";
+    return Math.floor(s/86400)+"일 전";
+  }
+
+  // ════════ 한가지모드 ════════
+  const focusEl=document.getElementById('focus');
+  const fTask=document.getElementById('focus-task');
+  const fResume=document.getElementById('focus-resume');
+  const fResumeTxt=document.getElementById('focus-resume-txt');
+  const fEditHint=document.getElementById('focus-edithint');
+  const fEditbox=document.getElementById('focus-editbox');
+  const fEditTa=document.getElementById('focus-edit-ta');
+  const parkInput=document.getElementById('park-input');
+  const parkBtn=document.getElementById('park-btn');
+
+  function openFocus(id){
+    focusId=id; const it=get(id); if(!it) return;
+    fTask.textContent=it.text;
+    if(it.note){ fResume.style.display='block'; fResumeTxt.textContent=it.note; }
+    else fResume.style.display='none';
+    closeEditbox();
+    focusEl.classList.add('show');
+  }
+  function leaveFocus(promptNote){
+    if(promptNote){
+      const it=get(focusId);
+      noteTa.value = (it && it.note) ? it.note : '';
+      noteTa.style.height='auto'; noteTa.style.height=Math.max(noteTa.scrollHeight,60)+'px';
+      noteVeil.classList.add('show');
+      setTimeout(()=>noteTa.focus(),50);
+      return; // 실제 나가기는 시트 버튼이 처리
+    }
+    focusEl.classList.remove('show');
+    focusId=null; render();
+  }
+  // 메모 시트
+  const noteVeil=document.getElementById('note-veil');
+  const noteTa=document.getElementById('note-ta');
+  noteTa.addEventListener('input',()=>{ noteTa.style.height='auto'; noteTa.style.height=noteTa.scrollHeight+'px'; });
+  function commitLeave(saveNote){
+    const it=get(focusId);
+    if(it && saveNote){ it.note=noteTa.value.trim(); it.touchedAt=Date.now(); save(); }
+    noteVeil.classList.remove('show');
+    focusEl.classList.remove('show');
+    focusId=null; render();
+    if(saveNote && noteTa.value.trim()) flash("표시해뒀어 — 이어서 가면 돼");
+  }
+  document.getElementById('note-save').onclick=()=>commitLeave(true);
+  document.getElementById('note-skip').onclick=()=>commitLeave(false);
+  noteVeil.addEventListener('click',e=>{ if(e.target===noteVeil) noteVeil.classList.remove('show'); });
+  document.getElementById('focus-leave').onclick=()=>leaveFocus(true);
+
+  // park-it: 딴생각 던지기
+  parkInput.addEventListener('input',()=>{ parkBtn.disabled=!parkInput.value.trim(); });
+  parkInput.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); park(); } });
+  parkBtn.onclick=park;
+  function park(){
+    const t=parkInput.value.trim(); if(!t) return;
+    items.unshift({id:uid(),text:t,status:'inbox',at:Date.now(),note:''});
+    save(); parkInput.value=''; parkBtn.disabled=true;
+    flashOnFocus("받은 생각에 던졌어 — 계속 가");
+    // 화면 안 바뀜: focus 유지
+  }
+
+  // done from focus
+  document.getElementById('focus-done').onclick=()=>{
+    const it=get(focusId); if(it){ it.status='done'; it.doneAt=Date.now(); save(); }
+    focusEl.classList.remove('show'); focusId=null;
+    render(); flash("끝냈다 🌱");
+  };
+
+  // edit task inside focus
+  function openEditbox(){
+    const it=get(focusId); if(!it) return;
+    fEditTa.value=it.text;
+    fEditbox.classList.add('show');
+    fTask.style.display='none'; fEditHint.style.display='none';
+    fEditTa.style.height='auto'; fEditTa.style.height=fEditTa.scrollHeight+'px';
+    fEditTa.focus();
+  }
+  function closeEditbox(){
+    fEditbox.classList.remove('show');
+    fTask.style.display=''; fEditHint.style.display='';
+  }
+  document.getElementById('focus-edit-open').onclick=openEditbox;
+  fTask.addEventListener('click',openEditbox);
+  fEditTa.addEventListener('input',()=>{ fEditTa.style.height='auto'; fEditTa.style.height=fEditTa.scrollHeight+'px'; });
+  document.getElementById('focus-edit-cancel').onclick=closeEditbox;
+  document.getElementById('focus-edit-save').onclick=()=>{
+    const it=get(focusId); const v=fEditTa.value.trim();
+    if(it&&v){ it.text=v; it.editedAt=Date.now(); save(); fTask.textContent=v; }
+    closeEditbox();
+  };
+
+  // toast inside focus (reuse global toast, it's fixed/top z)
+  function flashOnFocus(msg){ flash(msg); }
+
+  // ── render list ──
+  function render(){
+    document.getElementById('c-inbox').textContent=count('inbox');
+    document.getElementById('c-active').textContent=count('active');
+    document.getElementById('c-done').textContent=count('done');
+
+    const list=items.filter(i=>i.status===view);
+    scroll.innerHTML='';
+
+    if(view==='active'){
+      const used=count('active');
+      const note=document.createElement('div');
+      note.className='slot-note';
+      let dots='';
+      for(let i=0;i<SLOT_CAP;i++) dots+=`<span class="dot ${i<used?'lit':''}"></span>`;
+      note.innerHTML=`<span class="slot-dots">${dots}</span> 3칸 중 ${used}칸 사용 중`;
+      scroll.appendChild(note);
+    }
+
+    if(list.length===0){
+      const e=document.createElement('div');
+      e.className='empty fade';
+      if(view==='inbox') e.innerHTML='조용하네.<small>떠오르는 게 있으면 위에 던져둬.</small>';
+      if(view==='active') e.innerHTML='지금 붙든 일이 없어.<small>받은 생각에서 하나만 골라 시작해봐.</small>';
+      if(view==='done') e.innerHTML='아직 끝낸 게 없어.<small>작은 거 하나라도 끝내면 여기 쌓여.</small>';
+      scroll.appendChild(e); return;
+    }
+
+    const full=count('active')>=SLOT_CAP;
+    list.forEach(it=>{
+      const c=document.createElement('div');
+      c.className='card fade'+(it.status==='active'?' active':'');
+
+      // inline edit (inbox/done only)
+      if(editingId===it.id){
+        c.innerHTML=`<textarea class="edit-area" rows="2">${esc(it.text)}</textarea>
+          <div class="edit-acts">
+            <button class="chip save" data-savee="${it.id}">저장</button>
+            <button class="chip" data-cancele="${it.id}">취소</button>
+          </div>`;
+        scroll.appendChild(c);
+        const ta=c.querySelector('.edit-area');
+        ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px';
+        ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
+        ta.addEventListener('input',()=>{ ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; });
+        c.querySelector('[data-savee]').onclick=()=>saveEdit(it.id,ta.value);
+        c.querySelector('[data-cancele]').onclick=()=>{ editingId=null; render(); };
+        return;
+      }
+
+      let inner=`<div class="card-text">${esc(it.text)}</div>`;
+      let meta = it.status==='done' && it.doneAt ? '끝냄 · '+ago(it.doneAt) : ago(it.at);
+      if(it.editedAt) meta += ' · 수정됨';
+      inner+=`<div class="card-meta">${meta}</div>`;
+
+      if(it.status==='active'){
+        if(it.note) inner+=`<div class="card-note">↪ ${esc(it.note)}</div>`;
+        inner+=`<div class="open-hint">탭해서 집중 모드로 들어가기</div>`;
+        c.innerHTML=inner;
+        c.onclick=()=>openFocus(it.id);
+      }else if(it.status==='inbox'){
+        inner+=`<div class="card-acts">
+          <button class="chip go ${full?'full':''}" data-go="${it.id}">${full?'시작 (자리 비우고)':'지금 시작'}</button>
+          <button class="chip" data-edit="${it.id}">고치기</button>
+          <button class="chip" data-del="${it.id}">지우기</button></div>`;
+        c.innerHTML=inner;
+        c.querySelector('[data-go]').onclick=(e)=>{e.stopPropagation();tryActivate(it.id);};
+        c.querySelector('[data-edit]').onclick=(e)=>{e.stopPropagation();editingId=it.id;render();};
+        c.querySelector('[data-del]').onclick=(e)=>{e.stopPropagation();remove(it.id);};
+      }else{ // done
+        inner+=`<div class="card-acts">
+          <button class="chip" data-re="${it.id}">다시 하기</button>
+          <button class="chip" data-edit="${it.id}">고치기</button>
+          <button class="chip" data-del="${it.id}">지우기</button></div>`;
+        c.innerHTML=inner;
+        c.querySelector('[data-re]').onclick=(e)=>{e.stopPropagation();tryActivate(it.id);};
+        c.querySelector('[data-edit]').onclick=(e)=>{e.stopPropagation();editingId=it.id;render();};
+        c.querySelector('[data-del]').onclick=(e)=>{e.stopPropagation();remove(it.id);};
+      }
+      scroll.appendChild(c);
+    });
+  }
+
+  function esc(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  let toastT;
+  function flash(msg){
+    toast.textContent=msg; toast.classList.add('show');
+    clearTimeout(toastT); toastT=setTimeout(()=>toast.classList.remove('show'),1600);
+  }
+
+  render(); grow();
+})();
+</script>
+</body>
+</html>
