@@ -6,6 +6,10 @@
 <meta name="theme-color" content="#FBFAF8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="고요">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
 <title>고요 · 떠오른 것을 잃지 않는 곳</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -149,7 +153,8 @@
       <div class="edit-acts" style="margin-top:14px;">
         <button class="chip save" id="note-save" style="flex:1;text-align:center;">저장하고 나가기</button>
       </div>
-      <button class="cancel" id="note-skip">그냥 나가기 (메모 없이)</button>
+      <button class="cancel" id="note-clear" style="color:var(--muted);">메모 지우고 나가기</button>
+      <button class="cancel" id="note-skip">그대로 두고 나가기</button>
     </div>
   </div>
 
@@ -315,7 +320,11 @@
   noteTa.addEventListener('input',()=>{ noteTa.style.height='auto'; noteTa.style.height=noteTa.scrollHeight+'px'; });
   function commitLeave(saveNote){
     const it=get(focusId);
-    if(it && saveNote){ it.note=noteTa.value.trim(); it.touchedAt=Date.now(); save(); }
+    if(it && saveNote){
+      const v=noteTa.value.trim();
+      if(v){ it.note=v; it.touchedAt=Date.now(); save(); }
+      // 빈 칸이면 기존 메모를 지우지 않고 그대로 둔다
+    }
     noteVeil.classList.remove('show');
     focusEl.classList.remove('show');
     focusId=null; render();
@@ -323,6 +332,13 @@
   }
   document.getElementById('note-save').onclick=()=>commitLeave(true);
   document.getElementById('note-skip').onclick=()=>commitLeave(false);
+  document.getElementById('note-clear').onclick=()=>{
+    const it=get(focusId);
+    if(it){ it.note=''; save(); }
+    noteVeil.classList.remove('show');
+    focusEl.classList.remove('show');
+    focusId=null; render();
+  };
   noteVeil.addEventListener('click',e=>{ if(e.target===noteVeil) noteVeil.classList.remove('show'); });
   document.getElementById('focus-leave').onclick=()=>leaveFocus(true);
 
