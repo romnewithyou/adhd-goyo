@@ -40,7 +40,12 @@
   #toss:disabled{opacity:.3;cursor:default;}
   .hint{font-size:12.5px;color:var(--muted);margin-top:9px;}
 
-  .tabs{display:flex;border-bottom:1px solid var(--hair);background:var(--raised);}
+  .tabs{display:flex;border-bottom:1px solid var(--hair);background:var(--raised);position:relative;}
+  .sync-dot{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;}
+  .sync-dot.ok{background:var(--good);}
+  .sync-dot.err{background:#C9A227;}
+  .sync-dot.sync{background:var(--muted);animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.3;}50%{opacity:1;}}
   .tab{flex:1;padding:13px 0;background:none;border:none;cursor:pointer;color:var(--muted);font-family:var(--sys);font-size:13px;font-weight:500;position:relative;transition:color .2s;}
   .tab .n{font-variant-numeric:tabular-nums;opacity:.65;margin-left:5px;}
   .tab.on{color:var(--text);}
@@ -130,6 +135,7 @@
     <button class="tab on" data-view="inbox">받은 생각<span class="n" id="c-inbox">0</span></button>
     <button class="tab" data-view="active">지금 하는 일<span class="n" id="c-active">0</span></button>
     <button class="tab" data-view="done">끝낸 것<span class="n" id="c-done">0</span></button>
+    <span class="sync-dot sync" id="sync-dot" title="동기화 중"></span>
   </div>
 
   <div class="scroll" id="scroll"></div>
@@ -198,16 +204,121 @@
   const SLOT_CAP = 3;
   const KEY = "goyo.items.v1";
 
+  // ── Supabase 연결 정보 ──
+  const SB_URL = "https://mrcuwwzgxldtkztmalzh.supabase.co";
+  const SB_KEY = "sb_publishable_rcW2M1_Yo6w0HaCz7jb6hg_FqJ7WEy_";
+  const TABLE  = "goyo_items";
+  const REST   = SB_URL + "/rest/v1/" + TABLE;
+  const HEADERS = { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" };
+
   let items = load();
   let view = "inbox";
   let pendingActivate = null;
   let editingId = null;   // inline edit in list (inbox/done)
   let focusId = null;     // currently open in 한가지모드
+  let syncing = false;
 
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||[]; }catch(e){ return []; } }
-  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){} }
+  // save: 로컬에 즉시 저장(항상) + 클라우드에 백그라운드 푸시
+  function save(opts){
+    // 모든 항목에 수정시각 도장 (동기화 충돌 판정용)
+    try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){}
+    if(!(opts && opts.noPush)) schedulePush();
+  }
   function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
   function get(id){ return items.find(i=>i.id===id); }
+
+  // ════════ 동기화 엔진 (로컬 우선 + 백그라운드) ════════
+  // 각 항목은 _u (updated_at, ms) 와 _del (삭제표시) 을 가진다.
+  function stamp(it){ it._u = Date.now(); }
+
+  // 로컬 항목 → Supabase row 형태
+  function toRow(it){
+    return {
+      id: it.id, text: it.text||"", status: it._del?"_deleted":(it.status||"inbox"),
+      note: it.note||"", at: it.at||0,
+      done_at: it.doneAt||null, edited_at: it.editedAt||null, touched_at: it.touchedAt||null,
+      updated_at: new Date(it._u||Date.now()).toISOString()
+    };
+  }
+  // Supabase row → 로컬 항목
+  function fromRow(r){
+    return {
+      id: r.id, text: r.text||"", status: r.status,
+      note: r.note||"", at: r.at||0,
+      doneAt: r.done_at||undefined, editedAt: r.edited_at||undefined, touchedAt: r.touched_at||undefined,
+      _u: r.updated_at? new Date(r.updated_at).getTime() : 0,
+      _del: r.status==="_deleted"
+    };
+  }
+
+  let pushTimer=null, pushQueued=false;
+  function schedulePush(){
+    pushQueued=true;
+    if(pushTimer) return;
+    pushTimer=setTimeout(()=>{ pushTimer=null; if(pushQueued){ pushQueued=false; pushUp(); } }, 800);
+  }
+
+  // 로컬 변경을 클라우드로 (upsert)
+  async function pushUp(){
+    if(!navigator.onLine) return;
+    const dirty = items.filter(i=>i._dirty);
+    if(dirty.length===0) return;
+    try{
+      const rows = dirty.map(toRow);
+      const res = await fetch(REST, {
+        method:"POST",
+        headers: Object.assign({}, HEADERS, {"Prefer":"resolution=merge-duplicates,return=minimal"}),
+        body: JSON.stringify(rows)
+      });
+      if(res.ok){ dirty.forEach(i=>{ delete i._dirty; }); persistLocal(); setSync("ok"); }
+      else { setSync("err"); }
+    }catch(e){ setSync("err"); }
+  }
+
+  // 클라우드 → 로컬 (병합: 최신 _u 우선)
+  async function pullDown(){
+    if(!navigator.onLine) return;
+    try{
+      const res = await fetch(REST + "?select=*", { headers: HEADERS });
+      if(!res.ok){ setSync("err"); return; }
+      const rows = await res.json();
+      let changed=false;
+      rows.forEach(r=>{
+        const remote=fromRow(r);
+        const local=get(remote.id);
+        if(!local){
+          if(!remote._del){ items.push(remote); changed=true; }
+          else { items.push(remote); } // 삭제표시도 보관(되살아남 방지)
+        } else if((remote._u||0) > (local._u||0)){
+          Object.assign(local, remote); changed=true;
+        }
+      });
+      // 삭제표시된 항목은 화면용 목록에서 거름
+      if(changed){ persistLocal(); renderSafe(); }
+      setSync("ok");
+    }catch(e){ setSync("err"); }
+  }
+
+  function persistLocal(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){} }
+  function renderSafe(){ try{ render(); }catch(e){} }
+
+  // 실시간 구독 (WebSocket). 실패해도 폴링으로 대체.
+  let pollTimer=null;
+  function startRealtime(){
+    // 단순·견고하게: 12초 폴링 + 포커스/온라인 복귀시 즉시 pull
+    if(pollTimer) clearInterval(pollTimer);
+    pollTimer=setInterval(()=>{ pullDown(); }, 12000);
+    window.addEventListener("online", ()=>{ pushUp(); pullDown(); });
+    document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){ pullDown(); pushUp(); } });
+  }
+
+  // 동기화 상태 표시
+  function setSync(s){
+    const el=document.getElementById('sync-dot'); if(!el) return;
+    el.className='sync-dot '+s;
+    el.title = s==='ok'?'동기화됨':(s==='err'?'동기화 대기(오프라인)':'동기화 중');
+  }
 
   const field=document.getElementById('field');
   const toss=document.getElementById('toss');
@@ -221,14 +332,19 @@
   field.addEventListener('input',()=>{ grow(); toss.disabled=!field.value.trim(); });
   field.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); capture(); } });
   toss.addEventListener('click',capture);
+  // 변경 도장: 동기화 대상 표시
+  function markDirty(it){ it._u=Date.now(); it._dirty=true; }
+
   function capture(){
     const t=field.value.trim(); if(!t) return;
-    items.unshift({id:uid(),text:t,status:'inbox',at:Date.now(),note:''});
+    const it={id:uid(),text:t,status:'inbox',at:Date.now(),note:''};
+    markDirty(it);
+    items.unshift(it);
     save(); field.value=''; grow(); toss.disabled=true; field.focus();
     flash("던졌어 — 안 잃어버려"); render();
   }
 
-  function count(s){ return items.filter(i=>i.status===s).length; }
+  function count(s){ return items.filter(i=>i.status===s && !i._del).length; }
 
   function tryActivate(id){
     if(count('active')>=SLOT_CAP){ pendingActivate=id; openVeil(); return; }
@@ -237,13 +353,18 @@
   function setStatus(id,s){
     const it=get(id); if(!it) return;
     it.status=s; if(s==='done') it.doneAt=Date.now();
+    markDirty(it);
     save(); render();
   }
-  function remove(id){ items=items.filter(i=>i.id!==id); save(); render(); }
+  function remove(id){
+    const it=get(id); if(!it) return;
+    it._del=true; markDirty(it);   // 진짜 지우지 않고 삭제표시(되살아남 방지)
+    save(); render();
+  }
   function saveEdit(id,val){
     const it=get(id); if(!it) return;
     const v=val.trim();
-    if(v){ it.text=v; it.editedAt=Date.now(); save(); flash("고쳤어"); }
+    if(v){ it.text=v; it.editedAt=Date.now(); markDirty(it); save(); flash("고쳤어"); }
     editingId=null; render();
   }
 
@@ -322,7 +443,7 @@
     const it=get(focusId);
     if(it && saveNote){
       const v=noteTa.value.trim();
-      if(v){ it.note=v; it.touchedAt=Date.now(); save(); }
+      if(v){ it.note=v; it.touchedAt=Date.now(); markDirty(it); save(); }
       // 빈 칸이면 기존 메모를 지우지 않고 그대로 둔다
     }
     noteVeil.classList.remove('show');
@@ -334,7 +455,7 @@
   document.getElementById('note-skip').onclick=()=>commitLeave(false);
   document.getElementById('note-clear').onclick=()=>{
     const it=get(focusId);
-    if(it){ it.note=''; save(); }
+    if(it){ it.note=''; markDirty(it); save(); }
     noteVeil.classList.remove('show');
     focusEl.classList.remove('show');
     focusId=null; render();
@@ -348,7 +469,9 @@
   parkBtn.onclick=park;
   function park(){
     const t=parkInput.value.trim(); if(!t) return;
-    items.unshift({id:uid(),text:t,status:'inbox',at:Date.now(),note:''});
+    const it={id:uid(),text:t,status:'inbox',at:Date.now(),note:''};
+    markDirty(it);
+    items.unshift(it);
     save(); parkInput.value=''; parkBtn.disabled=true;
     flashOnFocus("받은 생각에 던졌어 — 계속 가");
     // 화면 안 바뀜: focus 유지
@@ -356,7 +479,7 @@
 
   // done from focus
   document.getElementById('focus-done').onclick=()=>{
-    const it=get(focusId); if(it){ it.status='done'; it.doneAt=Date.now(); save(); }
+    const it=get(focusId); if(it){ it.status='done'; it.doneAt=Date.now(); markDirty(it); save(); }
     focusEl.classList.remove('show'); focusId=null;
     render(); flash("끝냈다 🌱");
   };
@@ -380,7 +503,7 @@
   document.getElementById('focus-edit-cancel').onclick=closeEditbox;
   document.getElementById('focus-edit-save').onclick=()=>{
     const it=get(focusId); const v=fEditTa.value.trim();
-    if(it&&v){ it.text=v; it.editedAt=Date.now(); save(); fTask.textContent=v; }
+    if(it&&v){ it.text=v; it.editedAt=Date.now(); markDirty(it); save(); fTask.textContent=v; }
     closeEditbox();
   };
 
@@ -393,7 +516,7 @@
     document.getElementById('c-active').textContent=count('active');
     document.getElementById('c-done').textContent=count('done');
 
-    const list=items.filter(i=>i.status===view);
+    const list=items.filter(i=>i.status===view && !i._del);
     scroll.innerHTML='';
 
     if(view==='active'){
@@ -477,7 +600,23 @@
     clearTimeout(toastT); toastT=setTimeout(()=>toast.classList.remove('show'),1600);
   }
 
+  // ── 초기 동기화 부팅 ──
+  function initSync(){
+    // 기존 로컬 데이터(도장 없는 것)에 도장 → 첫 업로드 대상이 됨
+    let needPush=false;
+    items.forEach(it=>{
+      if(it._u===undefined){ it._u=it.editedAt||it.touchedAt||it.at||Date.now(); }
+      if(it._dirty===undefined && it._u){ it._dirty=true; needPush=true; }
+    });
+    if(needPush) persistLocal();
+    setSync("sync");
+    // 먼저 클라우드 받아서 병합 → 그다음 로컬 변경 올림
+    pullDown().then(()=>{ pushUp(); });
+    startRealtime();
+  }
+
   render(); grow();
+  initSync();
 })();
 </script>
 </body>
