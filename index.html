@@ -39,9 +39,10 @@
   #toss:active{transform:scale(.9);}
   #toss:disabled{opacity:.3;cursor:default;}
   .hint{font-size:12.5px;color:var(--muted);margin-top:9px;}
-  .proj-quick{margin-top:12px;width:100%;background:#2b2a26;color:#f3eee4;border:none;border-radius:11px;
-    padding:11px;font-family:var(--sys);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.01em;}
-  .proj-quick:active{transform:scale(.99);}
+  .proj-quick{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 20px);z-index:55;
+    width:56px;height:56px;border-radius:50%;background:#2b2a26;color:#f3eee4;border:none;
+    font-size:22px;cursor:pointer;box-shadow:0 4px 16px rgba(40,36,28,.3);display:grid;place-items:center;}
+  .proj-quick:active{transform:scale(.92);}
 
   .tabs{display:flex;border-bottom:1px solid var(--hair);background:var(--raised);position:relative;}
   .sync-dot{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;}
@@ -132,7 +133,7 @@
       <button id="toss" disabled>↑</button>
     </div>
     <div class="hint">분류는 나중에. 일단 던져두면 사라지지 않아.</div>
-    <button id="goProj" class="proj-quick">▦ 서른의 문턱 · 프로젝트 →</button>
+    <button id="goProj" class="proj-quick" title="서른의 문턱 · 프로젝트">▦</button>
   </div>
 
   <div class="tabs">
