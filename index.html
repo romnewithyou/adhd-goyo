@@ -39,6 +39,9 @@
   #toss:active{transform:scale(.9);}
   #toss:disabled{opacity:.3;cursor:default;}
   .hint{font-size:12.5px;color:var(--muted);margin-top:9px;}
+  .proj-quick{margin-top:12px;width:100%;background:#2b2a26;color:#f3eee4;border:none;border-radius:11px;
+    padding:11px;font-family:var(--sys);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.01em;}
+  .proj-quick:active{transform:scale(.99);}
 
   .tabs{display:flex;border-bottom:1px solid var(--hair);background:var(--raised);position:relative;}
   .sync-dot{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;}
@@ -129,6 +132,7 @@
       <button id="toss" disabled>↑</button>
     </div>
     <div class="hint">분류는 나중에. 일단 던져두면 사라지지 않아.</div>
+    <button id="goProj" class="proj-quick">▦ 서른의 문턱 · 프로젝트 →</button>
   </div>
 
   <div class="tabs">
@@ -198,6 +202,169 @@
     </div>
   </div>
 
+<!-- ===== PROJECT DASHBOARD OVERLAY (injected) ===== -->
+<style>
+  .pwrap{position:fixed;inset:0;z-index:80;background:#faf8f4;overflow-y:auto;display:none;
+    --paper:#faf8f4;--paper-2:#fff;--card:#fff;--line:#e7e2d8;--line-soft:#efeae0;--ink:#2b2a26;
+    --ink-soft:#6b675e;--fog:#9a958a;--fog-2:#b6b1a5;--frost:#3f8e9b;--frost-soft:#e3f0f1;
+    --grape:#7c5aa6;--grape-soft:#efe8f6;--gold:#b08838;--gold-soft:#f6edda;--blood:#b25058;--blood-soft:#f6e6e7;--r:16px;
+    font-family:var(--sys);color:var(--ink);line-height:1.55;}
+  .pwrap.show{display:block;}
+  .pinner{padding:calc(env(safe-area-inset-top) + 18px) clamp(14px,4vw,40px) 60px;}
+  .pback{background:none;border:1px solid var(--line);border-radius:20px;padding:8px 16px;
+    font-family:var(--sys);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;margin-bottom:18px;}
+  .ptop{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:8px;}
+  .ptop .eyebrow{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--frost);margin:0 0 9px;font-weight:700;}
+  .ptop h1{font-weight:800;font-size:clamp(22px,5vw,32px);margin:0;letter-spacing:-.02em;}
+  .ptop h1 .mask{color:var(--fog);font-weight:500;}
+  .ptop p{margin:10px 0 0;color:var(--ink-soft);font-size:13px;}
+  .pcount{margin-top:16px;display:flex;align-items:baseline;gap:8px;}
+  .pcount .num{font-weight:800;font-size:34px;color:var(--ink);letter-spacing:-.03em;}
+  .pcount .num small{font-size:.36em;color:var(--frost);font-weight:700;}
+  .pcount .lbl{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--fog);font-weight:600;}
+  .pumb{margin:18px 0 22px;padding:12px 16px;border:1px solid var(--line);border-radius:var(--r);
+    background:var(--paper-2);font-size:12.5px;color:var(--ink-soft);}
+  .pumb b{color:var(--frost);font-weight:700;}
+  .pgrid{display:grid;gap:14px;grid-template-columns:1fr;}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px 16px;
+    position:relative;overflow:hidden;cursor:pointer;transition:transform .14s,box-shadow .14s;}
+  .pcard:active{transform:scale(.99);}
+  .pcard::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;}
+  .pcard.c1::before{background:var(--gold);}.pcard.c2::before{background:var(--frost);}.pcard.c3::before{background:var(--grape);}
+  .pcard .idx{position:absolute;top:11px;right:14px;font-size:38px;line-height:1;color:var(--line);font-weight:700;font-family:var(--serif,Georgia);}
+  .pcard h2{font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin:0 0 4px;font-weight:700;}
+  .pcard.c1 h2{color:var(--gold);}.pcard.c2 h2{color:var(--frost);}.pcard.c3 h2{color:var(--grape);}
+  .pcard .title{font-weight:800;font-size:19px;margin:0 0 3px;letter-spacing:-.01em;}
+  .pcard .deliver{font-size:12px;color:var(--ink-soft);margin:0 0 13px;padding-bottom:11px;border-bottom:1px dashed var(--line);}
+  .pcard .deliver b{color:var(--ink);font-weight:700;}
+  .ptier{margin-bottom:10px;}
+  .ptier .tag{display:inline-block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:2px 9px;border-radius:20px;margin-bottom:5px;font-weight:700;}
+  .tag.min{color:var(--frost);background:var(--frost-soft);}.tag.goal{color:var(--gold);background:var(--gold-soft);}
+  .ptier p{margin:0;font-size:12.5px;color:var(--ink-soft);}
+  .pverdict{padding-top:11px;font-size:11.5px;color:var(--fog);}
+  .pverdict b{color:var(--ink-soft);font-weight:700;}
+  .popener{margin-top:10px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px;}
+  .pcard.c1 .popener{color:var(--gold);}.pcard.c2 .popener{color:var(--frost);}.pcard.c3 .popener{color:var(--grape);}
+  .popener .prog{margin-left:auto;color:var(--fog);font-weight:600;}
+  .pblock{background:var(--paper-2);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px;margin-top:16px;}
+  .pblock h3{font-weight:800;font-size:17px;margin:0 0 4px;letter-spacing:-.01em;}
+  .pblock .psub{font-size:11.5px;color:var(--fog);margin:0 0 14px;}
+  .pblock .psub button{font:inherit;font-size:11px;color:var(--frost);background:none;border:1px solid var(--frost-soft);border-radius:20px;padding:3px 11px;margin-left:8px;cursor:pointer;font-weight:700;}
+  .pweek{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .pday{border:1px solid var(--line);border-radius:9px;padding:8px 4px;text-align:center;min-height:68px;display:flex;flex-direction:column;gap:5px;align-items:center;background:var(--card);}
+  .pday .d{font-size:10px;letter-spacing:.08em;color:var(--fog);text-transform:uppercase;font-weight:600;}
+  .pday .chip{font-size:10px;padding:4px 3px;border-radius:6px;width:100%;font-weight:700;line-height:1.25;border:1px solid transparent;outline:none;}
+  .pday .chip:focus{box-shadow:0 0 0 2px var(--frost-soft);}
+  .chip.art{background:var(--grape-soft);color:#6a4a92;}.chip.work{background:var(--gold-soft);color:#8a6a25;}
+  .chip.exp{background:var(--blood-soft);color:#9a4048;}.chip.free{background:var(--paper);color:var(--fog);border:1px dashed var(--line);}
+  .pcyc{font-size:9px;color:var(--fog-2);cursor:pointer;user-select:none;}
+  .plegend{display:flex;gap:12px;flex-wrap:wrap;font-size:10.5px;color:var(--ink-soft);margin-top:12px;}
+  .plegend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle;}
+  .pnote{font-size:11px;color:var(--fog);margin-top:11px;}
+  .pguards{list-style:none;margin:0;padding:0;}
+  .pguards li{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--ink-soft);}
+  .pguards li:last-child{border-bottom:0;}
+  .pguards .k{flex-shrink:0;width:68px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--frost);font-weight:700;padding-top:2px;}
+  .pguards .v b{color:var(--ink);font-weight:700;}
+  /* 프로젝트 전용 생각기록 */
+  .pthoughts{background:var(--paper-2);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px;margin-top:16px;}
+  .pthoughts h3{font-weight:800;font-size:17px;margin:0 0 3px;}
+  .pthoughts .psub{font-size:11.5px;color:var(--fog);margin:0 0 14px;}
+  .ptcap{display:flex;gap:9px;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 6px 6px 14px;margin-bottom:14px;}
+  .ptcap textarea{flex:1;border:none;outline:none;background:transparent;font-family:var(--sys);font-size:14px;line-height:1.4;resize:none;max-height:100px;padding:7px 0;color:var(--ink);}
+  .ptcap button{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:none;background:var(--frost);color:#fff;font-size:18px;cursor:pointer;}
+  .ptcap button:disabled{opacity:.3;}
+  .ptlist{list-style:none;margin:0;padding:0;}
+  .ptitem{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin-bottom:9px;}
+  .ptitem .t{font-size:14px;line-height:1.45;color:var(--ink);}
+  .ptitem .m{font-size:11px;color:var(--fog);margin-top:5px;display:flex;gap:10px;}
+  .ptitem .m button{background:none;border:none;color:var(--fog);font-size:11px;cursor:pointer;padding:0;}
+  .ptitem .m button:active{color:var(--frost);}
+  .ptempty{font-size:12px;color:var(--fog-2);font-style:italic;padding:6px 0;}
+  /* 스티커 모달 */
+  .pscrim{position:fixed;inset:0;background:rgba(40,36,28,.42);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:95;padding:18px;}
+  .pscrim.open{display:flex;}
+  .pmodal{background:var(--paper);border:1px solid var(--line);border-radius:18px;width:min(540px,96vw);max-height:88vh;overflow:auto;padding:24px clamp(16px,3vw,26px);box-shadow:0 24px 60px rgba(50,40,20,.22);}
+  .pmodal .mhead{display:flex;justify-content:space-between;gap:14px;margin-bottom:4px;}
+  .pmodal h3{font-weight:800;font-size:20px;margin:0;}
+  .pmodal .mclose{background:none;border:none;font-size:24px;color:var(--fog);cursor:pointer;line-height:1;}
+  .pmodal .msub{font-size:12px;color:var(--ink-soft);margin:0 0 16px;}
+  .pmcount{font-size:12px;font-weight:700;margin:0 0 16px;}.pmcount b{font-size:15px;}
+  .vine{display:flex;flex-wrap:wrap;gap:11px;justify-content:center;padding:8px 0 4px;}
+  .berry{width:52px;height:52px;border-radius:50%;border:2px dashed var(--fog-2);background:var(--paper-2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--fog);transition:.16s;position:relative;}
+  .berry small{font-size:9px;font-weight:600;color:var(--fog-2);position:absolute;bottom:-15px;left:0;right:0;text-align:center;}
+  .berry.on{border-style:solid;color:#fff;}
+  .v-coin .berry.on{background:radial-gradient(circle at 35% 30%,#e8c46a,#b08838);border-color:#9a7530;color:#5c4612;}
+  .v-stamp .berry.on{background:radial-gradient(circle at 35% 30%,#5fb0bc,#3f8e9b);border-color:#327580;}
+  .v-grape .berry.on{background:radial-gradient(circle at 35% 30%,#9a78c2,#7c5aa6);border-color:#624785;}
+  .berryrow{margin-bottom:24px;}
+  .berryrow h4{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog);margin:0 0 14px;font-weight:700;display:flex;align-items:center;gap:9px;}
+  .berryrow h4::after{content:"";flex:1;height:1px;background:var(--line);}
+  .pmhint{font-size:11.5px;color:var(--fog);margin-top:6px;line-height:1.6;font-style:italic;border-top:1px solid var(--line);padding-top:14px;}
+  .pmhint b{color:var(--ink-soft);font-style:normal;}
+</style>
+
+<div class="pwrap" id="pwrap">
+  <div class="pinner">
+    <button class="pback" id="pback">‹ 고요로 돌아가기</button>
+    <div class="ptop">
+      <p class="eyebrow">앞자리가 바뀌기 전에 · 5개월 운용 시트</p>
+      <h1>서른의 문턱, <span class="mask">세 개의 프로젝트</span></h1>
+      <p>완성은 ‘잘했는가’가 아니라 ‘했는가’로 판정한다. 퀄리티는 변수에서 뺀다.</p>
+      <div class="pcount"><span class="num">5<small>개월</small></span><span class="lbl">남은 시간</span></div>
+    </div>
+    <div class="pumb"><b>창작 우산</b> — 빌런 · 어둡고 차가운 무드 · 연작 3장↑ 모이면 인정 · 한 권으로 묶이면 톤 자동 통일</div>
+    <div class="pgrid">
+      <div class="pcard c1" data-modal="m1"><span class="idx">01</span><h2>경제활동</h2><div class="title">알바 + 부업</div>
+        <p class="deliver">손에 남는 것 — <b>출근 중인 알바 + 매달 채운 수입표</b></p>
+        <div class="ptier"><span class="tag min">최소선</span><p>알바 1개 + 수입표 매달 기록 (+월 100만 1회)</p></div>
+        <div class="ptier"><span class="tag goal">목표선</span><p>월 200만 1회</p></div>
+        <div class="pverdict">판정 → <b>수입표를 매달 채웠는가</b></div>
+        <div class="popener">▸ 금화 스티커판 <span class="prog" id="p1">0/12</span></div></div>
+      <div class="pcard c2" data-modal="m2"><span class="idx">02</span><h2>해상도</h2><div class="title">안 해본 것 체험</div>
+        <p class="deliver">손에 남는 것 — <b>체험기 묶음 + 총정리 1편</b></p>
+        <div class="ptier"><span class="tag min">최소선</span><p>월 1개 체험 + 리포트 발행</p></div>
+        <div class="ptier"><span class="tag goal">목표선</span><p>월 2개 (못 채우면 다음 달 ‘싫은 것’ 의무)</p></div>
+        <div class="pverdict">판정 → <b>리포트를 발행했는가</b></div>
+        <div class="popener">▸ 체험 도장판 <span class="prog" id="p2">0/10</span></div></div>
+      <div class="pcard c3" data-modal="m3"><span class="idx">03</span><h2>예술</h2><div class="title">인쇄한 일러스트북</div>
+        <p class="deliver">손에 남는 것 — <b>인쇄소 출력 일러스트북 1권</b></p>
+        <div class="ptier"><span class="tag min">최소선</span><p>연작 합쳐 8장 · 장당 20시간 상한</p></div>
+        <div class="ptier"><span class="tag goal">목표선</span><p>15~20장 + 소개글 + 프로세스 기록</p></div>
+        <div class="pverdict">판정 → <b>인쇄소에 넘겨 1권 묶었는가</b></div>
+        <div class="popener">▸ 포도송이 그림판 <span class="prog" id="p3">0/20</span></div></div>
+    </div>
+
+    <div class="pthoughts">
+      <h3>프로젝트 생각함</h3>
+      <p class="psub">이 프로젝트 전용 메모. 고요 받은생각과 섞이지 않아.</p>
+      <div class="ptcap">
+        <textarea id="ptField" rows="1" placeholder="프로젝트 관련 생각…"></textarea>
+        <button id="ptToss" disabled>↑</button>
+      </div>
+      <ul class="ptlist" id="ptList"></ul>
+    </div>
+
+    <div class="pblock">
+      <h3>한 주를 어떻게 쓰나</h3>
+      <p class="psub">칸을 눌러 글자 수정 · ↻로 색 바꿈<button id="presetWeek">기본값</button></p>
+      <div class="pweek" id="pweek"></div>
+      <div class="plegend"><span><i style="background:#7c5aa6"></i>그림</span><span><i style="background:#b08838"></i>알바</span><span><i style="background:#b25058"></i>부업·체험</span><span><i style="border:1px dashed #e7e2d8"></i>버퍼</span></div>
+      <p class="pnote">알바 요일이 잡히면 칸 글자를 고치고 ↻로 색을 맞춰. 일요일은 점검·따라잡기용으로 비워둔다.</p>
+    </div>
+    <div class="pblock">
+      <h3>흐지부지·실패 방지 장치</h3>
+      <ul class="pguards">
+        <li><span class="k">리듬 마감</span><span class="v"><b>매주 일요일</b>에 한 주를 닫는다. 밀려도 다음 일요일에 리셋.</span></li>
+        <li><span class="k">범위 목표</span><span class="v">단일 숫자 대신 <b>최소선~목표선</b>. 최소선만 넘겨도 성공.</span></li>
+        <li><span class="k">버퍼</span><span class="v">일요일과 <b>5개월 중 한 달</b>을 비운다. 밀림은 ‘예정된 버퍼’.</span></li>
+        <li><span class="k">완벽주의 차단</span><span class="v">완성 기준에서 <b>퀄리티를 뺀다</b>. ‘했나/안 했나’만.</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+<div class="pscrim" id="pscrim"><div class="pmodal" id="pmodalBox"></div></div>
+
 <script>
 (function(){
   "use strict";
@@ -236,7 +403,7 @@
   function toRow(it){
     return {
       id: it.id, text: it.text||"", status: it._del?"_deleted":(it.status||"inbox"),
-      note: it.note||"", at: it.at||0,
+      note: it.note||"", at: it.at||0, proj: it.proj||null,
       done_at: it.doneAt||null, edited_at: it.editedAt||null, touched_at: it.touchedAt||null,
       updated_at: new Date(it._u||Date.now()).toISOString()
     };
@@ -245,7 +412,7 @@
   function fromRow(r){
     return {
       id: r.id, text: r.text||"", status: r.status,
-      note: r.note||"", at: r.at||0,
+      note: r.note||"", at: r.at||0, proj: r.proj||undefined,
       doneAt: r.done_at||undefined, editedAt: r.edited_at||undefined, touchedAt: r.touched_at||undefined,
       _u: r.updated_at? new Date(r.updated_at).getTime() : 0,
       _del: r.status==="_deleted"
@@ -516,7 +683,7 @@
     document.getElementById('c-active').textContent=count('active');
     document.getElementById('c-done').textContent=count('done');
 
-    const list=items.filter(i=>i.status===view && !i._del);
+    const list=items.filter(i=>i.status===view && !i._del && (view==='active' || !i.proj));
     scroll.innerHTML='';
 
     if(view==='active'){
@@ -617,7 +784,134 @@
 
   render(); grow();
   initSync();
+
+  /* ════════ 프로젝트 대시보드 ════════ */
+  const PROJ='p30';
+  const DASH_REST = SB_URL + "/rest/v1/goyo_dash_state";
+  const pwrap=document.getElementById('pwrap');
+  document.getElementById('goProj').onclick=()=>{ pwrap.classList.add('show'); pwrap.scrollTop=0; dashPull(); };
+  document.getElementById('pback').onclick=()=>{ pwrap.classList.remove('show'); };
+
+  // --- 프로젝트 전용 생각함 (goyo_items에 proj 태그로 저장, 메인과 격리) ---
+  const ptField=document.getElementById('ptField');
+  const ptToss=document.getElementById('ptToss');
+  const ptList=document.getElementById('ptList');
+  ptField.addEventListener('input',()=>{ ptField.style.height='auto'; ptField.style.height=Math.min(ptField.scrollHeight,100)+'px'; ptToss.disabled=!ptField.value.trim(); });
+  ptField.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); ptAdd(); } });
+  ptToss.onclick=ptAdd;
+  function ptAdd(){
+    const t=ptField.value.trim(); if(!t) return;
+    const it={id:uid(),text:t,status:'inbox',at:Date.now(),note:'',proj:PROJ};
+    markDirty(it); items.unshift(it); save();
+    ptField.value=''; ptField.style.height='auto'; ptToss.disabled=true;
+    ptRender();
+  }
+  function ptRender(){
+    const list=items.filter(i=>i.proj===PROJ && i.status!=='done' && !i._del).sort((a,b)=>(b.at||0)-(a.at||0));
+    ptList.innerHTML='';
+    if(list.length===0){ ptList.innerHTML='<li class="ptempty">아직 없어. 프로젝트 생각을 여기 모아.</li>'; return; }
+    list.forEach(it=>{
+      const li=document.createElement('li'); li.className='ptitem';
+      li.innerHTML='<div class="t"></div><div class="m"><button data-act="go">지금 하는 일로</button><button data-act="del">지우기</button></div>';
+      li.querySelector('.t').textContent=it.text;
+      li.querySelector('[data-act=go]').onclick=()=>{ it.proj=null; it.status='active'; markDirty(it); save(); ptRender(); render(); flash('지금 하는 일로 옮겼어'); };
+      li.querySelector('[data-act=del]').onclick=()=>{ it._del=true; markDirty(it); save(); ptRender(); };
+      ptList.appendChild(li);
+    });
+  }
+
+  // --- 요일표 ---
+  const DEFAULT_WK=[{d:'월',c:'art',t:'그림'},{d:'화',c:'work',t:'알바'},{d:'수',c:'art',t:'그림'},{d:'목',c:'work',t:'알바'},{d:'금',c:'art',t:'그림'},{d:'토',c:'exp',t:'부업·체험'},{d:'일',c:'free',t:'버퍼·점검'}];
+  const CYCLE=['art','work','exp','free'];
+  let week=JSON.parse(JSON.stringify(DEFAULT_WK));
+  const pweek=document.getElementById('pweek');
+  function drawWeek(){
+    pweek.innerHTML='';
+    week.forEach((x,i)=>{
+      const el=document.createElement('div'); el.className='pday';
+      el.innerHTML='<span class="d">'+x.d+'</span><span class="chip '+x.c+'" contenteditable="true" data-i="'+i+'">'+esc(x.t)+'</span><span class="pcyc" data-i="'+i+'">↻ 색</span>';
+      pweek.appendChild(el);
+    });
+    pweek.querySelectorAll('.chip').forEach(c=>{
+      c.addEventListener('blur',()=>{ week[+c.dataset.i].t=c.textContent.trim()||' '; dashPush(); });
+      c.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();c.blur();} });
+    });
+    pweek.querySelectorAll('.pcyc').forEach(b=>{
+      b.onclick=()=>{ const i=+b.dataset.i; week[i].c=CYCLE[(CYCLE.indexOf(week[i].c)+1)%CYCLE.length]; drawWeek(); dashPush(); };
+    });
+  }
+  document.getElementById('presetWeek').onclick=()=>{ week=JSON.parse(JSON.stringify(DEFAULT_WK)); drawWeek(); dashPush(); };
+
+  // --- 스티커판 ---
+  const stick={m1:{},m2:{},m3:{}};
+  const months=['7월','8월','9월','10월','11월'];
+  const totals={m1:12,m2:10,m3:20}, progEl={m1:'p1',m2:'p2',m3:'p3'}, countEl={m1:'c1',m2:'c2',m3:'c3'};
+  function buildM1(){
+    let h='<div class="mhead"><h3>금화 스티커판 · 경제활동</h3><button class="mclose">×</button></div><p class="msub">진짜 목표는 금액이 아니라 <b>매달 수입표를 채웠는가</b>.</p><p class="pmcount">채운 금화 <b id="c1">0</b> / 12</p>';
+    h+='<div class="berryrow"><h4>매달 수입표 기록 (메인)</h4><div class="vine v-coin">';
+    months.forEach((m,i)=>{ h+='<div class="berry" data-k="rec'+i+'">기록<small>'+m+'</small></div>'; });
+    h+='</div></div><div class="berryrow"><h4>금액 보너스</h4><div class="vine v-coin"><div class="berry" data-k="a100">100만<small>1회</small></div><div class="berry" data-k="a200">200만<small>1회</small></div></div></div>';
+    h+='<p class="pmhint"><b>금화 한 줄(기록 5개)이 200만 한 번보다 무겁다.</b> 기록은 100% 네 손 안이라서.</p>'; return h;
+  }
+  function buildM2(){
+    let h='<div class="mhead"><h3>체험 도장판 · 해상도</h3><button class="mclose">×</button></div><p class="msub">한 칸 = 체험 1개 + 리포트 발행. 발행해야 도장이 찍힌다.</p><p class="pmcount">찍은 도장 <b id="c2">0</b> / 10</p>';
+    months.forEach((m,i)=>{ h+='<div class="berryrow"><h4>'+m+'</h4><div class="vine v-stamp"><div class="berry" data-k="'+i+'a">①</div><div class="berry" data-k="'+i+'b">②<small>여유분</small></div></div></div>'; });
+    h+='<p class="pmhint">최소선은 월 ①만. <b>①을 못 채운 달이 있으면, 다음 달 한 칸은 ‘싫어하는 것’ 의무.</b></p>'; return h;
+  }
+  function buildM3(){
+    let h='<div class="mhead"><h3>포도송이 그림판 · 예술</h3><button class="mclose">×</button></div><p class="msub">한 알 = 완성작 1장. 인쇄소에 넘기면 송이 완성.</p><p class="pmcount">익은 포도 <b id="c3">0</b> / 20</p>';
+    h+='<div class="berryrow"><h4>최소선 — 8장</h4><div class="vine v-grape">';
+    for(let i=0;i<8;i++) h+='<div class="berry" data-k="g'+i+'">'+(i+1)+'</div>';
+    h+='</div></div><div class="berryrow"><h4>목표선 — +12장</h4><div class="vine v-grape">';
+    for(let j=8;j<20;j++) h+='<div class="berry" data-k="g'+j+'">'+(j+1)+'</div>';
+    h+='</div></div><p class="pmhint"><b>장당 20시간 상한 · 단계별로 시간을 쪼개 적기.</b></p>'; return h;
+  }
+  const builders={m1:buildM1,m2:buildM2,m3:buildM3};
+  const pscrim=document.getElementById('pscrim'), pbox=document.getElementById('pmodalBox');
+  function openSticker(id){
+    pbox.innerHTML=builders[id](); pbox.scrollTop=0;
+    pbox.querySelectorAll('.berry').forEach(b=>{
+      const k=b.dataset.k;
+      if(stick[id][k]) b.classList.add('on');
+      b.onclick=()=>{ b.classList.toggle('on'); stick[id][k]=b.classList.contains('on'); updateCount(id); dashPush(); };
+    });
+    pbox.querySelector('.mclose').onclick=()=>pscrim.classList.remove('open');
+    updateCount(id); pscrim.classList.add('open');
+  }
+  function updateCount(id){
+    const n=Object.keys(stick[id]).filter(k=>stick[id][k]).length;
+    const c=document.getElementById(countEl[id]); if(c) c.textContent=n;
+    const p=document.getElementById(progEl[id]); if(p) p.textContent=n+'/'+totals[id];
+  }
+  document.querySelectorAll('.pcard').forEach(card=>{ card.onclick=()=>openSticker(card.dataset.modal); });
+  pscrim.addEventListener('click',e=>{ if(e.target===pscrim) pscrim.classList.remove('open'); });
+
+  // --- 대시보드 상태 동기화 (단일 행) ---
+  let dashTimer=null;
+  function dashPush(){
+    if(dashTimer) return;
+    dashTimer=setTimeout(()=>{ dashTimer=null;
+      if(!navigator.onLine) return;
+      const row={ id:'dashboard', payload:{stick:stick, week:week}, updated_at:new Date().toISOString() };
+      fetch(DASH_REST,{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(row)}).catch(()=>{});
+    },600);
+  }
+  function dashPull(){
+    if(!navigator.onLine){ drawWeek(); ptRender(); return; }
+    fetch(DASH_REST+"?id=eq.dashboard&select=payload",{headers:HEADERS})
+      .then(r=>r.ok?r.json():[]).then(rows=>{
+        if(rows&&rows[0]&&rows[0].payload){
+          const p=rows[0].payload;
+          if(p.stick){ ['m1','m2','m3'].forEach(id=>{ stick[id]=p.stick[id]||{}; }); }
+          if(p.week&&p.week.length===7) week=p.week;
+        }
+        drawWeek(); ptRender();
+        ['m1','m2','m3'].forEach(updateCount);
+      }).catch(()=>{ drawWeek(); ptRender(); });
+  }
+  drawWeek(); ptRender();
 })();
 </script>
+
 </body>
 </html>
