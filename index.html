@@ -104,6 +104,13 @@
   .focus-resume{background:var(--ember-bg);border:1px solid #C25A2E33;border-radius:12px;padding:13px 15px;margin-bottom:24px;}
   .focus-resume .lbl{font-size:11px;color:var(--ember);font-weight:600;margin-bottom:4px;}
   .focus-resume .txt{font-size:15px;line-height:1.5;}
+  .resume-more{margin-top:10px;background:none;border:none;color:var(--ember);font-family:var(--sys);font-size:12px;font-weight:600;cursor:pointer;padding:2px 0;}
+  .resume-history{display:none;margin-top:12px;border-top:1px solid #C25A2E33;padding-top:12px;}
+  .resume-history.show{display:block;}
+  .rh-item{padding:8px 0;border-bottom:1px solid #C25A2E22;}
+  .rh-item:last-child{border-bottom:none;}
+  .rh-date{font-size:10.5px;color:var(--ember);font-weight:700;margin-bottom:3px;}
+  .rh-text{font-size:13.5px;line-height:1.5;color:var(--text);white-space:pre-wrap;}
   .focus-task{font-size:26px;line-height:1.4;font-weight:500;}
   .focus-edithint{font-size:12px;color:var(--muted);margin-top:14px;}
   .focus-bottom{padding:0 20px calc(env(safe-area-inset-bottom) + 22px);display:flex;flex-direction:column;gap:11px;}
@@ -179,6 +186,8 @@
       <div class="focus-resume" id="focus-resume" style="display:none">
         <div class="lbl">지난번 여기까지 했어</div>
         <div class="txt" id="focus-resume-txt"></div>
+        <button class="resume-more" id="resume-more">지난 기록 전부 보기 ▾</button>
+        <div class="resume-history" id="resume-history"></div>
       </div>
       <div class="focus-task" id="focus-task"></div>
       <div class="focus-edithint" id="focus-edithint">탭하면 고칠 수 있어</div>
@@ -404,7 +413,7 @@
   function toRow(it){
     return {
       id: it.id, text: it.text||"", status: it._del?"_deleted":(it.status||"inbox"),
-      note: it.note||"", at: it.at||0, proj: it.proj||null,
+      note: it.note||"", at: it.at||0, proj: it.proj||null, notes: it.notes||null,
       done_at: it.doneAt||null, edited_at: it.editedAt||null, touched_at: it.touchedAt||null,
       updated_at: new Date(it._u||Date.now()).toISOString()
     };
@@ -413,7 +422,7 @@
   function fromRow(r){
     return {
       id: r.id, text: r.text||"", status: r.status,
-      note: r.note||"", at: r.at||0, proj: r.proj||undefined,
+      note: r.note||"", at: r.at||0, proj: r.proj||undefined, notes: r.notes||undefined,
       doneAt: r.done_at||undefined, editedAt: r.edited_at||undefined, touchedAt: r.touched_at||undefined,
       _u: r.updated_at? new Date(r.updated_at).getTime() : 0,
       _del: r.status==="_deleted"
@@ -577,6 +586,13 @@
   const fTask=document.getElementById('focus-task');
   const fResume=document.getElementById('focus-resume');
   const fResumeTxt=document.getElementById('focus-resume-txt');
+  document.getElementById('resume-more').onclick=()=>{
+    const rh=document.getElementById('resume-history');
+    const more=document.getElementById('resume-more');
+    const open=rh.classList.toggle('show');
+    const n=(get(focusId)&&get(focusId).notes||[]).length;
+    more.textContent= open ? '접기 ▴' : '지난 기록 전부 보기 ('+n+') ▾';
+  };
   const fEditHint=document.getElementById('focus-edithint');
   const fEditbox=document.getElementById('focus-editbox');
   const fEditTa=document.getElementById('focus-edit-ta');
@@ -588,6 +604,22 @@
     fTask.textContent=it.text;
     if(it.note){ fResume.style.display='block'; fResumeTxt.textContent=it.note; }
     else fResume.style.display='none';
+    // 히스토리 구성
+    const rh=document.getElementById('resume-history');
+    const more=document.getElementById('resume-more');
+    rh.classList.remove('show'); rh.innerHTML='';
+    const hist=(it.notes||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));
+    if(hist.length>1){
+      more.style.display='block';
+      more.textContent='지난 기록 전부 보기 ('+hist.length+') ▾';
+      hist.forEach(h=>{
+        const d=new Date(h.at||0);
+        const ds=d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+['일','월','화','수','목','금','토'][d.getDay()]+'요일 '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+        rh.innerHTML+='<div class="rh-item"><div class="rh-date">'+ds+'</div><div class="rh-text">'+esc(h.t)+'</div></div>';
+      });
+    } else {
+      more.style.display='none';
+    }
     closeEditbox();
     focusEl.classList.add('show');
   }
@@ -611,8 +643,12 @@
     const it=get(focusId);
     if(it && saveNote){
       const v=noteTa.value.trim();
-      if(v){ it.note=v; it.touchedAt=Date.now(); markDirty(it); save(); }
-      // 빈 칸이면 기존 메모를 지우지 않고 그대로 둔다
+      if(v){
+        it.note=v; it.touchedAt=Date.now();
+        if(!it.notes) it.notes=[];
+        it.notes.push({t:v, at:Date.now()});   // 히스토리 누적
+        markDirty(it); save();
+      }
     }
     noteVeil.classList.remove('show');
     focusEl.classList.remove('show');
