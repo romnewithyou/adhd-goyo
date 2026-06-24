@@ -280,6 +280,18 @@
   .pthoughts{background:var(--paper-2);border:1px solid var(--line);border-radius:var(--r);padding:20px 18px;margin-top:16px;}
   .pthoughts h3{font-weight:800;font-size:17px;margin:0 0 3px;}
   .pthoughts .psub{font-size:11.5px;color:var(--fog);margin:0 0 14px;}
+  .cat-zone{margin-top:13px;padding-top:13px;border-top:1px dashed #e7e2d8;cursor:default;}
+  .cat-active{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+  .cat-active .ca-item{background:#e3f0f1;border:1px solid #cfe5e7;border-radius:9px;padding:8px 11px;font-size:12.5px;color:#27606a;font-weight:600;display:flex;align-items:center;gap:7px;}
+  .cat-active .ca-item .dot{width:6px;height:6px;border-radius:50%;background:#3f8e9b;flex-shrink:0;}
+  .cat-active .ca-item .lbl{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#3f8e9b;font-weight:700;margin-right:2px;}
+  .cat-field{font-size:13px !important;}
+  .cat-list{list-style:none;margin:10px 0 0;padding:0;}
+  .cat-list .ci{background:#fff;border:1px solid #e7e2d8;border-radius:9px;padding:9px 11px;margin-bottom:7px;}
+  .cat-list .ci .t{font-size:13px;line-height:1.4;color:#2b2a26;}
+  .cat-list .ci .m{font-size:10.5px;color:#9a958a;margin-top:5px;display:flex;gap:10px;}
+  .cat-list .ci .m button{background:none;border:none;color:#9a958a;font-size:10.5px;cursor:pointer;padding:0;}
+  .cat-list .ci .m button:active{color:#3f8e9b;}
   .ptcap{display:flex;gap:9px;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 6px 6px 14px;margin-bottom:14px;}
   .ptcap textarea{flex:1;border:none;outline:none;background:transparent;font-family:var(--sys);font-size:14px;line-height:1.4;resize:none;max-height:100px;padding:7px 0;color:var(--ink);}
   .ptcap button{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:none;background:var(--frost);color:#fff;font-size:18px;cursor:pointer;}
@@ -330,24 +342,39 @@
         <div class="ptier"><span class="tag min">최소선</span><p>알바 1개 + 수입표 매달 기록 (+월 100만 1회)</p></div>
         <div class="ptier"><span class="tag goal">목표선</span><p>월 200만 1회</p></div>
         <div class="pverdict">판정 → <b>수입표를 매달 채웠는가</b></div>
-        <div class="popener">▸ 금화 스티커판 <span class="prog" id="p1">0/12</span></div></div>
+        <div class="popener">▸ 금화 스티커판 <span class="prog" id="p1">0/12</span></div>
+        <div class="cat-zone" data-cat="c1" onclick="event.stopPropagation()">
+          <div class="cat-active" id="ca-c1"></div>
+          <div class="ptcap"><textarea class="cat-field" data-cat="c1" rows="1" placeholder="경제활동 관련 생각…"></textarea><button class="cat-toss" data-cat="c1" disabled>↑</button></div>
+          <ul class="cat-list" id="cl-c1"></ul>
+        </div></div>
       <div class="pcard c2" data-modal="m2"><span class="idx">02</span><h2>해상도</h2><div class="title">안 해본 것 체험</div>
         <p class="deliver">손에 남는 것 — <b>체험기 묶음 + 총정리 1편</b></p>
         <div class="ptier"><span class="tag min">최소선</span><p>월 1개 체험 + 리포트 발행</p></div>
         <div class="ptier"><span class="tag goal">목표선</span><p>월 2개 (못 채우면 다음 달 ‘싫은 것’ 의무)</p></div>
         <div class="pverdict">판정 → <b>리포트를 발행했는가</b></div>
-        <div class="popener">▸ 체험 도장판 <span class="prog" id="p2">0/10</span></div></div>
+        <div class="popener">▸ 체험 도장판 <span class="prog" id="p2">0/10</span></div>
+        <div class="cat-zone" data-cat="c2" onclick="event.stopPropagation()">
+          <div class="cat-active" id="ca-c2"></div>
+          <div class="ptcap"><textarea class="cat-field" data-cat="c2" rows="1" placeholder="해상도(체험) 관련 생각…"></textarea><button class="cat-toss" data-cat="c2" disabled>↑</button></div>
+          <ul class="cat-list" id="cl-c2"></ul>
+        </div></div>
       <div class="pcard c3" data-modal="m3"><span class="idx">03</span><h2>예술</h2><div class="title">인쇄한 일러스트북</div>
         <p class="deliver">손에 남는 것 — <b>인쇄소 출력 일러스트북 1권</b></p>
         <div class="ptier"><span class="tag min">최소선</span><p>연작 합쳐 8장 · 장당 20시간 상한</p></div>
         <div class="ptier"><span class="tag goal">목표선</span><p>15~20장 + 소개글 + 프로세스 기록</p></div>
         <div class="pverdict">판정 → <b>인쇄소에 넘겨 1권 묶었는가</b></div>
-        <div class="popener">▸ 포도송이 그림판 <span class="prog" id="p3">0/20</span></div></div>
+        <div class="popener">▸ 포도송이 그림판 <span class="prog" id="p3">0/20</span></div>
+        <div class="cat-zone" data-cat="c3" onclick="event.stopPropagation()">
+          <div class="cat-active" id="ca-c3"></div>
+          <div class="ptcap"><textarea class="cat-field" data-cat="c3" rows="1" placeholder="예술(그림) 관련 생각…"></textarea><button class="cat-toss" data-cat="c3" disabled>↑</button></div>
+          <ul class="cat-list" id="cl-c3"></ul>
+        </div></div>
     </div>
 
     <div class="pthoughts">
       <h3>프로젝트 생각함</h3>
-      <p class="psub">이 프로젝트 전용 메모. 고요 받은생각과 섞이지 않아.</p>
+      <p class="psub">카테고리에 안 묶이는 전체 메모. 고요 받은생각과 섞이지 않아.</p>
       <div class="ptcap">
         <textarea id="ptField" rows="1" placeholder="프로젝트 관련 생각…"></textarea>
         <button id="ptToss" disabled>↑</button>
@@ -413,7 +440,7 @@
   function toRow(it){
     return {
       id: it.id, text: it.text||"", status: it._del?"_deleted":(it.status||"inbox"),
-      note: it.note||"", at: it.at||0, proj: it.proj||null, notes: it.notes||null,
+      note: it.note||"", at: it.at||0, proj: it.proj||null, cat: it.cat||null, notes: it.notes||null,
       done_at: it.doneAt||null, edited_at: it.editedAt||null, touched_at: it.touchedAt||null,
       updated_at: new Date(it._u||Date.now()).toISOString()
     };
@@ -422,7 +449,7 @@
   function fromRow(r){
     return {
       id: r.id, text: r.text||"", status: r.status,
-      note: r.note||"", at: r.at||0, proj: r.proj||undefined, notes: r.notes||undefined,
+      note: r.note||"", at: r.at||0, proj: r.proj||undefined, cat: r.cat||undefined, notes: r.notes||undefined,
       doneAt: r.done_at||undefined, editedAt: r.edited_at||undefined, touchedAt: r.touched_at||undefined,
       _u: r.updated_at? new Date(r.updated_at).getTime() : 0,
       _del: r.status==="_deleted"
@@ -844,10 +871,10 @@
     ptRender();
   }
   function ptRender(){
-    const list=items.filter(i=>i.proj===PROJ && i.status!=='done' && !i._del).sort((a,b)=>(b.at||0)-(a.at||0));
+    const list=items.filter(i=>i.proj===PROJ && !i.cat && i.status!=='done' && !i._del).sort((a,b)=>(b.at||0)-(a.at||0));
     ptList.innerHTML='';
-    if(list.length===0){ ptList.innerHTML='<li class="ptempty">아직 없어. 프로젝트 생각을 여기 모아.</li>'; return; }
-    list.forEach(it=>{
+    if(list.length===0){ ptList.innerHTML='<li class="ptempty">아직 없어. 프로젝트 생각을 여기 모아.</li>'; }
+    else list.forEach(it=>{
       const li=document.createElement('li'); li.className='ptitem';
       li.innerHTML='<div class="t"></div><div class="m"><button data-act="go">지금 하는 일로</button><button data-act="del">지우기</button></div>';
       li.querySelector('.t').textContent=it.text;
@@ -855,7 +882,50 @@
       li.querySelector('[data-act=del]').onclick=()=>{ it._del=true; markDirty(it); save(); ptRender(); };
       ptList.appendChild(li);
     });
+    catRenderAll();
   }
+
+  // --- 카테고리별 생각 + 진행중 ---
+  const CATLABEL={c1:'경제활동',c2:'해상도',c3:'예술'};
+  function catAdd(cat,field,btn){
+    const t=field.value.trim(); if(!t) return;
+    const it={id:uid(),text:t,status:'inbox',at:Date.now(),note:'',proj:PROJ,cat:cat};
+    markDirty(it); items.unshift(it); save();
+    field.value=''; field.style.height='auto'; btn.disabled=true;
+    catRender(cat);
+  }
+  function catRender(cat){
+    // 진행중(active) — cat 태그 유지된 것
+    const ca=document.getElementById('ca-'+cat);
+    const actives=items.filter(i=>i.cat===cat && i.status==='active' && !i._del).sort((a,b)=>(b.at||0)-(a.at||0));
+    ca.innerHTML='';
+    actives.forEach(it=>{
+      const d=document.createElement('div'); d.className='ca-item';
+      d.innerHTML='<span class="dot"></span><span class="lbl">진행중</span><span class="tx"></span>';
+      d.querySelector('.tx').textContent=it.text;
+      ca.appendChild(d);
+    });
+    // 대기중(inbox) 생각
+    const cl=document.getElementById('cl-'+cat);
+    const list=items.filter(i=>i.cat===cat && i.status==='inbox' && !i._del).sort((a,b)=>(b.at||0)-(a.at||0));
+    cl.innerHTML='';
+    list.forEach(it=>{
+      const li=document.createElement('li'); li.className='ci';
+      li.innerHTML='<div class="t"></div><div class="m"><button data-act="go">지금 실행</button><button data-act="del">지우기</button></div>';
+      li.querySelector('.t').textContent=it.text;
+      li.querySelector('[data-act=go]').onclick=()=>{ it.status='active'; markDirty(it); save(); catRender(cat); render(); flash(CATLABEL[cat]+' — 지금 하는 일로'); };
+      li.querySelector('[data-act=del]').onclick=()=>{ it._del=true; markDirty(it); save(); catRender(cat); };
+      cl.appendChild(li);
+    });
+  }
+  function catRenderAll(){ ['c1','c2','c3'].forEach(catRender); }
+  document.querySelectorAll('.cat-field').forEach(f=>{
+    const cat=f.dataset.cat;
+    const btn=document.querySelector('.cat-toss[data-cat="'+cat+'"]');
+    f.addEventListener('input',()=>{ f.style.height='auto'; f.style.height=Math.min(f.scrollHeight,100)+'px'; btn.disabled=!f.value.trim(); });
+    f.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); catAdd(cat,f,btn); } });
+    btn.onclick=()=>catAdd(cat,f,btn);
+  });
 
   // --- 요일표 ---
   const DEFAULT_WK=[{d:'월',c:'art',t:'그림'},{d:'화',c:'work',t:'알바'},{d:'수',c:'art',t:'그림'},{d:'목',c:'work',t:'알바'},{d:'금',c:'art',t:'그림'},{d:'토',c:'exp',t:'부업·체험'},{d:'일',c:'free',t:'버퍼·점검'}];
