@@ -620,6 +620,10 @@
     if(s<86400) return Math.floor(s/3600)+"시간 전";
     return Math.floor(s/86400)+"일 전";
   }
+  function ymd(ts){
+    const d=new Date(ts);
+    return d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
 
   // ════════ 한가지모드 ════════
   const focusEl=document.getElementById('focus');
@@ -784,8 +788,9 @@
     document.getElementById('c-active').textContent=count('active');
     document.getElementById('c-done').textContent=count('done');
 
+    const keyOf = (x)=> view==='done' ? (x.doneAt||x.at||0) : (x.at||0);
     const list=items.filter(i=>i.status===view && !i._del && (view==='active' || !i.proj))
-      .sort((a,b)=> sortNewest ? (b.at||0)-(a.at||0) : (a.at||0)-(b.at||0));
+      .sort((a,b)=> sortNewest ? keyOf(b)-keyOf(a) : keyOf(a)-keyOf(b));
     scroll.innerHTML='';
 
     if(view==='active'){
@@ -830,7 +835,13 @@
       }
 
       let inner=`<div class="card-text">${esc(it.text)}</div>`;
-      let meta = it.status==='done' && it.doneAt ? '끝냄 · '+ago(it.doneAt) : ago(it.at);
+      let meta;
+      if(it.status==='done'){
+        meta='만든 날 '+ymd(it.at||0);
+        if(it.doneAt) meta+=' · 끝낸 날 '+ymd(it.doneAt);
+      } else {
+        meta=ago(it.at);
+      }
       if(it.editedAt) meta += ' · 수정됨';
       inner+=`<div class="card-meta">${meta}</div>`;
       if(it.status==='done' && it.result) inner+=`<div class="card-result">↳ ${esc(it.result)}</div>`;
