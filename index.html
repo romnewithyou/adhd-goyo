@@ -49,6 +49,9 @@
   .sync-dot.ok{background:var(--good);}
   .sync-dot.err{background:#C9A227;}
   .sync-dot.sync{background:var(--muted);animation:pulse 1s ease-in-out infinite;}
+  .sortbar{display:flex;justify-content:flex-end;padding:8px 16px 0;background:var(--raised);}
+  .sortbtn{background:var(--bg);border:1px solid var(--hair);border-radius:16px;padding:5px 12px;font-family:var(--sys);font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer;}
+  .sortbtn:active{transform:scale(.95);}
   @keyframes pulse{0%,100%{opacity:.3;}50%{opacity:1;}}
   .tab{flex:1;padding:13px 0;background:none;border:none;cursor:pointer;color:var(--muted);font-family:var(--sys);font-size:13px;font-weight:500;position:relative;transition:color .2s;}
   .tab .n{font-variant-numeric:tabular-nums;opacity:.65;margin-left:5px;}
@@ -149,6 +152,7 @@
     <button class="tab" data-view="done">끝낸 것<span class="n" id="c-done">0</span></button>
     <span class="sync-dot sync" id="sync-dot" title="동기화 중"></span>
   </div>
+  <div class="sortbar"><button id="sortBtn" class="sortbtn">↓ 최신순</button></div>
 
   <div class="scroll" id="scroll"></div>
   <div class="toast" id="toast"></div>
@@ -417,6 +421,7 @@
 
   let items = load();
   let view = "inbox";
+  let sortNewest = true;
   let pendingActivate = null;
   let editingId = null;   // inline edit in list (inbox/done)
   let focusId = null;     // currently open in 한가지모드
@@ -747,7 +752,8 @@
     document.getElementById('c-active').textContent=count('active');
     document.getElementById('c-done').textContent=count('done');
 
-    const list=items.filter(i=>i.status===view && !i._del && (view==='active' || !i.proj));
+    const list=items.filter(i=>i.status===view && !i._del && (view==='active' || !i.proj))
+      .sort((a,b)=> sortNewest ? (b.at||0)-(a.at||0) : (a.at||0)-(b.at||0));
     scroll.innerHTML='';
 
     if(view==='active'){
@@ -845,6 +851,12 @@
     pullDown().then(()=>{ pushUp(); });
     startRealtime();
   }
+
+  document.getElementById('sortBtn').onclick=()=>{
+    sortNewest=!sortNewest;
+    document.getElementById('sortBtn').textContent = sortNewest ? '↓ 최신순' : '↑ 오래된순';
+    render();
+  };
 
   render(); grow();
   initSync();
