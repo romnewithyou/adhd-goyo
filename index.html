@@ -68,6 +68,7 @@
   .card.active .card-text{cursor:pointer;}
   .card-meta{font-size:11px;color:var(--muted);margin-top:6px;}
   .card-note{font-size:12.5px;color:var(--ember);margin-top:7px;line-height:1.4;}
+  .card-result{font-size:13px;color:var(--good);margin-top:8px;line-height:1.45;background:#EAF3EC;border-radius:9px;padding:8px 11px;font-weight:500;}
   .card-acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
   .chip{border:1px solid var(--hair);background:var(--bg);color:var(--muted);font-family:var(--sys);font-size:12.5px;font-weight:500;padding:7px 13px;border-radius:20px;cursor:pointer;transition:all .15s;}
   .chip:active{transform:scale(.94);}
@@ -124,6 +125,11 @@
   .focus-park button:active{transform:scale(.9);}
   .focus-park button:disabled{opacity:.25;}
   .focus-main-acts{display:flex;gap:10px;}
+  .result-input{width:100%;border:1px solid var(--hair);border-radius:12px;background:var(--raised);color:var(--text);font-family:var(--sys);font-size:14px;line-height:1.4;padding:11px 13px;outline:none;resize:none;max-height:100px;}
+  .result-input:focus{border-color:var(--good);}
+  .focus-return{background:none;border:none;color:var(--muted);font-family:var(--sys);font-size:12px;cursor:pointer;padding:8px;text-align:center;}
+  .focus-return:disabled{opacity:.35;cursor:default;}
+  .focus-return span{color:var(--ember);font-weight:600;}
   .focus-done{flex:1;background:var(--good);border:none;color:#fff;font-family:var(--sys);font-size:16px;font-weight:600;padding:15px;border-radius:14px;cursor:pointer;transition:transform .12s;}
   .focus-done:active{transform:scale(.97);}
   .focus-edit{flex-shrink:0;background:var(--raised);border:1px solid var(--hair);color:var(--muted);font-family:var(--sys);font-size:14px;font-weight:500;padding:15px 18px;border-radius:14px;cursor:pointer;}
@@ -209,10 +215,12 @@
         <input id="park-input" placeholder="딴생각 떠올랐어? 여기 던져둬…" autocomplete="off">
         <button id="park-btn" disabled>↑</button>
       </div>
+      <textarea id="result-input" class="result-input" rows="1" placeholder="끝내며 결과 한 줄 (선택) — 어떻게 됐어?"></textarea>
       <div class="focus-main-acts">
         <button class="focus-done" id="focus-done">끝냈어 🌱</button>
         <button class="focus-edit" id="focus-edit-open">고치기</button>
       </div>
+      <button class="focus-return" id="focus-return">받은 생각으로 되돌리기 <span id="return-left"></span></button>
     </div>
   </div>
 
@@ -445,7 +453,7 @@
   function toRow(it){
     return {
       id: it.id, text: it.text||"", status: it._del?"_deleted":(it.status||"inbox"),
-      note: it.note||"", at: it.at||0, proj: it.proj||null, cat: it.cat||null, notes: it.notes||null,
+      note: it.note||"", at: it.at||0, proj: it.proj||null, cat: it.cat||null, notes: it.notes||null, result: it.result||null, returns: it.returns||0,
       done_at: it.doneAt||null, edited_at: it.editedAt||null, touched_at: it.touchedAt||null,
       updated_at: new Date(it._u||Date.now()).toISOString()
     };
@@ -454,7 +462,7 @@
   function fromRow(r){
     return {
       id: r.id, text: r.text||"", status: r.status,
-      note: r.note||"", at: r.at||0, proj: r.proj||undefined, cat: r.cat||undefined, notes: r.notes||undefined,
+      note: r.note||"", at: r.at||0, proj: r.proj||undefined, cat: r.cat||undefined, notes: r.notes||undefined, result: r.result||undefined, returns: r.returns||0,
       doneAt: r.done_at||undefined, editedAt: r.edited_at||undefined, touchedAt: r.touched_at||undefined,
       _u: r.updated_at? new Date(r.updated_at).getTime() : 0,
       _del: r.status==="_deleted"
@@ -653,6 +661,13 @@
       more.style.display='none';
     }
     closeEditbox();
+    // 결과 입력창 초기화 + 되돌리기 남은횟수
+    const ri=document.getElementById('result-input');
+    ri.value=it.result||''; ri.style.height='auto';
+    const left=2-(it.returns||0);
+    const rbtn=document.getElementById('focus-return');
+    document.getElementById('return-left').textContent='('+left+'번 남음)';
+    rbtn.disabled = left<=0;
     focusEl.classList.add('show');
   }
   function leaveFocus(promptNote){
@@ -714,10 +729,27 @@
   }
 
   // done from focus
+  const resultInput=document.getElementById('result-input');
+  resultInput.addEventListener('input',()=>{ resultInput.style.height='auto'; resultInput.style.height=Math.min(resultInput.scrollHeight,100)+'px'; });
   document.getElementById('focus-done').onclick=()=>{
-    const it=get(focusId); if(it){ it.status='done'; it.doneAt=Date.now(); markDirty(it); save(); }
+    const it=get(focusId);
+    if(it){
+      const r=resultInput.value.trim();
+      if(r) it.result=r;
+      it.status='done'; it.doneAt=Date.now(); markDirty(it); save();
+    }
     focusEl.classList.remove('show'); focusId=null;
     render(); flash("끝냈다 🌱");
+  };
+
+  // 받은 생각으로 되돌리기 (기회 2번)
+  document.getElementById('focus-return').onclick=()=>{
+    const it=get(focusId); if(!it) return;
+    const used=it.returns||0;
+    if(used>=2){ flash("되돌리기 기회를 다 썼어"); return; }
+    it.returns=used+1; it.status='inbox'; markDirty(it); save();
+    focusEl.classList.remove('show'); focusId=null;
+    render(); flash("받은 생각으로 되돌렸어 ("+(2-it.returns)+"번 남음)");
   };
 
   // edit task inside focus
@@ -801,6 +833,7 @@
       let meta = it.status==='done' && it.doneAt ? '끝냄 · '+ago(it.doneAt) : ago(it.at);
       if(it.editedAt) meta += ' · 수정됨';
       inner+=`<div class="card-meta">${meta}</div>`;
+      if(it.status==='done' && it.result) inner+=`<div class="card-result">↳ ${esc(it.result)}</div>`;
 
       if(it.status==='active'){
         if(it.note) inner+=`<div class="card-note">↪ ${esc(it.note)}</div>`;
